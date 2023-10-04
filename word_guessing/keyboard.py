@@ -23,11 +23,11 @@ def get_kb() -> ReplyKeyboardMarkup:
 
 # Функция для прикрепления к сообщению ссылки на репозиторий github.
 def get_github() -> InlineKeyboardMarkup:
-    urlkb = InlineKeyboardMarkup(row_width=1)
-    urlbtn = InlineKeyboardButton(text='Github', url='https://github.com/Shearer2?tab=repositories')
-    urlkb.add(urlbtn)
+    url_kb = InlineKeyboardMarkup(row_width=1)
+    url_btn = InlineKeyboardButton(text='Github', url='https://github.com/Shearer2?tab=repositories')
+    url_kb.add(url_btn)
 
-    return urlkb
+    return url_kb
 
 
 # Функция для прерывания игры.
@@ -45,10 +45,10 @@ def get_cancel() -> ReplyKeyboardMarkup:
 
 # Функция для прикрепления к сообщению ссылок на проекты в телеграм.
 def get_projects() -> InlineKeyboardMarkup:
-    urlkb = InlineKeyboardMarkup(row_width=1)
-    urlbtn = InlineKeyboardButton(text='Линия слова', url='https://t.me/s/Line_words_bot/')
-    urlbtn1 = InlineKeyboardButton(text='Заметки', url='https://t.me/s/saved_notes_bot/')
-    urlbtn2 = InlineKeyboardButton(text='Висельница', url='https://t.me/s/Game_Gallow_Bot/')
-    urlkb.add(urlbtn, urlbtn1, urlbtn2)
+    url_kb = InlineKeyboardMarkup(row_width=1)
+    url_btn = InlineKeyboardButton(text='Линия слова', url='https://t.me/s/Line_words_bot/')
+    url_btn1 = InlineKeyboardButton(text='Заметки', url='https://t.me/s/saved_notes_bot/')
+    url_btn2 = InlineKeyboardButton(text='Висельница', url='https://t.me/s/Game_Gallow_Bot/')
+    url_kb.add(url_btn, url_btn1, url_btn2)
 
-    return urlkb
+    return url_kb

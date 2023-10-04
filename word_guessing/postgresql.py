@@ -27,3 +27,20 @@ def words_all():
         )
         words = list(map(lambda x: x[0], cursor.fetchall()))
     return words
+
+
+async def db_start():
+    # При помощи контекстного менеджера создаём таблицу в базе данных, если она ещё не была создана.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "CREATE TABLE IF NOT EXISTS gallow_bot.game (user_id bigserial PRIMARY KEY, word varchar(255), "
+            "tries smallint, guessed_letters varchar(255), guessed_words varchar(255), text varchar(255)"
+        )
+
+
+async def create_profile():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""INSERT INTO gallow_bot.game (user_id, )"""
+        )
+
