@@ -4,7 +4,12 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from game import get_word, display_hangman, check
+from postgresql import db_start, create_profile, update_profile, information_id, information_game
 from keyboard import get_kb, get_github, get_projects, get_cancel
+
+
+async def on_startup(_):
+    await db_start()
 
 
 # Загружаем переменные окружения.
@@ -42,22 +47,18 @@ async def bot_start(message: types.Message) -> None:
 # Обработчик команды начала игры.
 @dp.message_handler(commands=['play'])
 async def bot_play(message: types.Message) -> None:
-    # Объявляем глобальные переменные, чтобы их можно было изменять.
-    global word, tries, word_completion, guessed_letters, guessed_words, word1, word2, text
     # Записываем в переменную полученное случайное слово.
     word = get_word()
     # Указываем количество доступных попыток.
     tries = 6
     # Создаём список для вывода букв в виде скобок.
     word_completion = ['[]'] * len(word)
-    # Создаём список уже названных букв.
-    guessed_letters = []
-    # Создаём список уже названных слов.
-    guessed_words = []
-    # Создаём три переменные, в первой храним список из отсортированных букв загаданного слова, во втором список из
-    # букв слова, в третьем пустой список.
-    word1, word2, text = list(word), list(word), []
-    word1.sort()
+    # Создаём список уже названных букв и слов, а также пустой список.
+    guessed_letters, guessed_words = '', ''
+    if message.from_user.id not in information_id():
+        await create_profile(message.from_user.id, word, tries, guessed_letters, guessed_words, word_completion)
+    else:
+        await update_profile(message.from_user.id, word, tries, guessed_letters, guessed_words, word_completion)
     await message.answer(f'Ваше текущее состояние игры: {display_hangman(tries)}')
     await message.answer(f'Количество доступных попыток: {tries}')
     # Делаем вывод первоначальной информации в виде строки, а не в виде списка.
@@ -94,38 +95,38 @@ async def bot_help(message: types.Message) -> None:
 # Обработка всех сообщений поступающих на вход.
 @dp.message_handler()
 async def bot_all(message: types.Message, state: FSMContext) -> None:
-    # Объявляем глобальные переменные.
-    global word, tries, word_completion, guessed_letters, guessed_words, word1, word2, text
+    # Забираем значения переменных из базы данных у пользователя.
+    word, tries, guessed_letters, guessed_words, word_completion = information_game(message.from_user.id)
+    letters_word = list(word)
+    guessed_letters, guessed_words = guessed_letters, guessed_words
+    word_completion = word_completion.split()
     # Получаем букву или слово, которое ввёл пользователь.
     letter = message.text
     # Если буквы не принадлежат русскому алфавиту, то выводим сообщение.
     if check(letter):
         await message.answer('Введите букву русского алфавита или слово!')
     # Иначе если введённая буква содержится в списке вводимых букв, то вывести сообщение об этом.
-    elif letter.upper() in guessed_letters:
+    elif letter.upper() in guessed_letters.split():
         await message.answer('Вы уже вводили эту букву!')
     # Иначе если введённое слово содержится в списке вводимых слов, то вывести сообщение об этом.
-    elif letter.upper() in guessed_words:
+    elif letter.upper() in guessed_words.split():
         await message.answer('Вы уже вводили это слово!')
     # Иначе начинаем обработку буквы или слова.
     else:
         # Если отсортированный список из правильно введённых букв не равняется отсортированному списку загаданного
         # слова и количество попыток не равно нулю, то продолжаем игру.
-        if text != word1 and tries != 0:
+        if word_completion != letters_word and tries != 0:
             # Обрабатываем введение буквы.
             if len(letter) == 1:
-                # Добавляем введённую букву в список вводимых букв.
-                guessed_letters.append(letter.upper())
+                # Добавляем введённую букву строку.
+                guessed_letters += f'{letter.upper()} '
                 # Если буква содержится в списке букв загаданного слова, то проходим циклом по списку и если буква
                 # равняется букве из списка по заданному индексу, то осуществляем замену пустых скобок по заданному
                 # индексу на соответствующую букву.
-                if letter.upper() in word2:
-                    for i in range(len(word2)):
-                        if letter.upper() == word2[i]:
+                if letter.upper() in letters_word:
+                    for i in range(len(letters_word)):
+                        if letter.upper() == letters_word[i]:
                             word_completion[i] = letter.upper()
-                            # Добавляем букву в список и сортируем.
-                            text.append(letter.upper())
-                            text.sort()
                     await message.answer(f'Ваше текущее состояние игры: {display_hangman(tries)}')
                     await message.answer(f'Количество доступных попыток: {tries}')
                     await message.answer(f'{" ".join(word_completion)}')
@@ -137,26 +138,27 @@ async def bot_all(message: types.Message, state: FSMContext) -> None:
                     await message.answer(f'{" ".join(word_completion)}')
             # Иначе если было введено слово, то добавляем его в список уже вводимых слов.
             elif len(letter) > 1:
-                guessed_words.append(letter.upper())
+                guessed_words += f'{letter.upper()} '
                 # Если слово равно загаданному слову, то завершаем игру.
                 if letter.upper() == word:
+                    word_completion = list(letter.upper())
                     await message.answer('Поздравляем, вы угадали слово! Вы победили!')
-                    await state.finish()
                 # Иначе отнимаем одну попытку.
                 else:
                     tries -= 1
                     await message.answer(f'Ваше текущее состояние игры: {display_hangman(tries)}')
                     await message.answer(f'Количество доступных попыток: {tries}')
                     await message.answer(f'{" ".join(word_completion)}')
+            await update_profile(message.from_user.id, word, tries, guessed_letters, guessed_words, word_completion)
         # Иначе если попытки закончились, то завершаем игру.
         elif tries == 0:
             await message.answer(f'Вы исчерпали все попытки.\nЗагаданное слово: {word}')
             await state.finish()
         # Иначе если слово было угадано, то завершаем игру.
-        elif text == word1:
+        elif word_completion == letters_word:
             await message.answer('Поздравляем, вы угадали слово! Вы победили!')
             await state.finish()
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
